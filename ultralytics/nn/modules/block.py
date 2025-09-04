@@ -4,13 +4,13 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from .conv import Conv, DWConv, GhostConv, LightConv, RepConv
+from .conv import Conv, DWConv, GhostConv, LightConv, RepConv, CBAM, Conv
 from .transformer import TransformerBlock
 
 __all__ = ('DFL', 'HGBlock', 'HGStem', 'SPP', 'SPPF', 'C1', 'C2', 'C3', 'C2f', 'C3x', 'C3TR', 'C3Ghost',
-           'GhostBottleneck', 'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3')
-
+           'GhostBottleneck', 'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3',
+           
+           'ImageEnhancementBlock', 'ASPPBlock', 'ASPPLiteBlock', 'EfficientSEBlock')
 
 class DFL(nn.Module):
     """
@@ -331,3 +331,123 @@ class BottleneckCSP(nn.Module):
         y1 = self.cv3(self.m(self.cv1(x)))
         y2 = self.cv2(x)
         return self.cv4(self.act(self.bn(torch.cat((y1, y2), 1))))
+
+# --추가된 class code-- ImageEnhancementBlock, ASPPBlock, ASPPLiteBlock, EfficientSEBlock
+########################################################################################################## 
+
+class ImageEnhancementBlock(nn.Module):
+    """Image Enhancement Block: 수중 영상의 색상 및 대비를 향상시키는 블록."""
+    def __init__(self, c1: int, c2: int):
+        """
+        입력 채널 c1를 받아 출력 채널 c2로 변환.
+        수중 이미지의 색 균형 조정과 선명도 향상을 위해 두 단계의 Conv 적용.
+        c1: 입력 채널 수 (예: 3 RGB 채널)
+        c2: 출력 채널 수 (보통 3으로 설정하여 색상 공간 유지)
+        """
+        super().__init__()
+        # 중간 채널 수 설정: 입력 채널이 작으면 최소 16 채널로 확장하여 처리
+        hidden = max(c1, 16)
+        # 첫 번째 Conv: 3x3 커널로 채널 확장 및 국부 패턴 추출 (BN+활성화 포함)
+        self.conv1 = Conv(c1, hidden, k=3, s=1)
+        # 두 번째 Conv: 3x3 커널로 출력 채널 변환 (BN+활성화 포함)
+        self.conv2 = Conv(hidden, c2, k=3, s=1)
+        # Residual 연결 여부: 입력과 출력을 더해줄지 결정 (입출력 채널 같을 때)
+        self.add = (c1 == c2)
+        # 활성화 함수는 Conv 모듈 내부에서 기본값 (SiLU)로 적용됨
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """순전파: 색상 보정 후 원본과 합성하여 개선된 출력 생성"""
+        # 1단계: 색상/명암도 보정을 위한 첫 Conv 연산
+        y = self.conv1(x)
+        # 2단계: 세부 특징 향상을 위한 두 번째 Conv 연산
+        y = self.conv2(y)
+        # 입력과 출력 합성 (residual skip)으로 원본 색 정보를 보존하며 향상
+        return y + x if self.add else y
+
+class ASPPBlock(nn.Module):
+    """ASPP (Atrous Spatial Pyramid Pooling) Block: 여러 dilation으로 멀티스케일 문맥 정보를 추출."""
+    def __init__(self, c1: int, c2: int, dilations=(1, 3, 6, 9)):
+        """
+        c1: 입력 채널 수
+        c2: 출력 채널 수
+        dilations: 병렬로 사용할 dilation 값들의 튜플 (기본값 1,3,6,9)
+        """
+        super().__init__()
+        c_ = c1 // 4 if c1 >= 4 else c1
+
+        # 1x1 branch (no dilation)
+        self.cv1 = Conv(c1, c_, k=1, s=1)
+
+        # 3x3 branches with dilation = dilations[1], dilations[2], dilations[3]
+        # YOLO Conv는 dilation 키워드가 아니라 d= 를 사용합니다.
+        self.cv2 = Conv(c1, c_, k=3, s=1, d=dilations[1])
+        self.cv3 = Conv(c1, c_, k=3, s=1, d=dilations[2])
+        self.cv4 = Conv(c1, c_, k=3, s=1, d=dilations[3])
+
+        # concat 후 채널 축소
+        self.cv_out = Conv(c_ * 4, c2, k=1, s=1)
+
+        # residual 허용 (입출력 채널 동일 시)
+        self.add = (c1 == c2)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        y1 = self.cv1(x)
+        y2 = self.cv2(x)
+        y3 = self.cv3(x)
+        y4 = self.cv4(x)
+        y = torch.cat((y1, y2, y3, y4), dim=1)
+        out = self.cv_out(y)
+        return out + x if self.add else out
+
+class ASPPLiteBlock(nn.Module):
+    """
+    경량 ASPP:
+      - 분기 1: 1x1 Conv
+      - 분기 2: DWConv 3x3 (dilation=3)
+      - 분기 3: DWConv 3x3 (dilation=6)
+    분기 채널 축소 후 concat → 1x1 Conv로 융합, (c1==c2)면 residual.
+    """
+    def __init__(self, c1: int, c2: int, dilations=(3, 6), r: int = 8):
+        super().__init__()
+        # 분기 채널 축소 비율 r(기본 8): c1이 클수록 이득, 너무 작으면 표현력 저하
+        c_ = max(c1 // r, 8)
+
+        self.cv1 = Conv(c1, c_, k=1, s=1)               # 1x1
+        self.cv2 = DWConv(c1, c_, k=3, s=1, d=dilations[0])  # DW dilated 3
+        self.cv3 = DWConv(c1, c_, k=3, s=1, d=dilations[1])  # DW dilated 6
+
+        self.cv_out = Conv(c_ * 3, c2, k=1, s=1)
+        self.add = (c1 == c2)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        y1 = self.cv1(x)
+        y2 = self.cv2(x)
+        y3 = self.cv3(x)
+        y  = torch.cat((y1, y2, y3), dim=1)
+        out = self.cv_out(y)
+        return out + x if self.add else out
+
+class EfficientSEBlock(nn.Module):
+    """
+    Efficient Channel Attention (ECA 유사):
+      - 채널 평균 → 1D conv(인접 채널 상호작용) → sigmoid 게이트 → 채널 재가중치
+      - 파라미터/연산량이 매우 작아 경량화에 유리
+    Args:
+        channels: 입력/출력 채널 수
+        kernel_size: 1D conv 커널(홀수 권장, 3/5 등)
+    """
+    def __init__(self, channels: int, kernel_size: int = 3):
+        super().__init__()
+        assert kernel_size % 2 == 0 or kernel_size % 2 == 1, "kernel_size must be int"
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)        # (B,C,1,1)
+        self.conv1d   = nn.Conv1d(1, 1, kernel_size, padding=kernel_size // 2, bias=False)
+        self.act      = nn.Sigmoid()
+        self.channels = channels
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        b, c, h, w = x.shape
+        y = self.avg_pool(x).view(b, 1, c)             # (B,1,C)
+        y = self.conv1d(y)                              # (B,1,C)
+        y = self.act(y).view(b, c, 1, 1)               # (B,C,1,1)
+        return x * y.expand_as(x)
+##########################################################################################################
