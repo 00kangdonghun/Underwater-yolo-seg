@@ -49,7 +49,37 @@ https://github.com/LiamLian0727/UIIS10K/blob/main/README.md
 │   ├── deposition302_convert2yolo.py  # deposition_302 convert2yolo
 │   ├── marine262_convert2yolo.py     # marine_262 convert2yolo
 │   └── trash295_convert2yolo.py      # trash_295 convert2yolo
-│    
+│
+├── dataset
+│   ├── deposition_302
+│       ├── images
+│       │     ├── train
+│       │     └── val
+│       └── labels
+│             ├── train
+│             └── val
+│   ├── marine_262
+│       ├── images
+│       │     ├── train
+│       │     └── val
+│       └── labels
+│             ├── train
+│             └── val
+│   ├── trash_295
+│       ├── images
+│       │     ├── train
+│       │     └── val
+│       └── labels
+│             ├── train
+│             └── val
+│   ├── UIIS10K
+│       ├── images
+│       │     ├── train
+│       │     └── val
+│       └── labels
+│             ├── train
+│             └── val
+│
 ├── ultralytics/
 │   ├── cfg/
 │   │   ├── models/v8/uw-final.yaml     # 수중 특화 모델 정의
