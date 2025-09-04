@@ -11,7 +11,8 @@ from ultralytics.nn.modules import (AIFI, C1, C2, C3, C3TR, SPP, SPPF, Bottlenec
                                     Classify, Concat, Conv, Conv2, ConvTranspose, Detect, DWConv, DWConvTranspose2d,
                                     Focus, GhostBottleneck, GhostConv, HGBlock, HGStem, Pose, RepC3, RepConv,
                                     RTDETRDecoder, Segment,MS_GetT,MS_CancelT, MS_ConvBlock,  MS_DownSampling, MS_StandardConv,
-                                    SpikeSPPF,SpikeConv,SpikeDetect,MS_AllConvBlock)
+                                    SpikeSPPF,SpikeConv,SpikeDetect,MS_AllConvBlock,
+                                    ImageEnhancementBlock, ASPPBlock, ASPPLiteBlock, EfficientSEBlock)
 # from ultralytics.nn.modules import *
 from ultralytics.utils import DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS, LOGGER, colorstr, emojis, yaml_load
 from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
@@ -703,6 +704,30 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
             if m in (BottleneckCSP, C1, C2, C2f, C3, C3TR, C3Ghost, C3x, RepC3):
                 args.insert(2, n)  # number of repeats
                 n = 1
+# --추가된 class parse 등록--
+#####################################################################################################
+        # 1) ASPPBlock은 Conv류와 동일하게 처리(스케일링 허용)
+        elif m in (ASPPBlock, ASPPLiteBlock):  # ← 새로 추가
+            c1, c2 = ch[f], args[0]
+            # 일반 Conv류와 같은 규칙으로 width/max_channels 스케일 적용
+            if c2 != nc:
+                c2 = make_divisible(min(c2, max_channels) * width, 8)
+            args = [c1, c2, *args[1:]]
+    
+
+        # 2) ImageEnhancementBlock은 "항상 채널 고정" (스케일링 금지)
+        elif m is ImageEnhancementBlock:  # ← 새로 추가
+            c1, c2 = ch[f], args[0]
+            # 중요: 수중 향상 블록은 출력 채널을 고정(예: 3채널 유지)해야 하므로 스케일링 금지
+            # 즉, make_divisible/width_multiple 적용하지 않음
+            args = [c1, c2, *args[1:]]
+            
+
+        elif m is EfficientSEBlock:
+            # YAML: [] 또는 [kernel_size] -> (channels=ch[f], kernel_size=?)
+            args = [ch[f], *args]
+            c2 = ch[f]  # 채널 유지
+#####################################################################################################
         elif m is AIFI:
             args = [ch[f], *args]
         elif m in (HGStem, HGBlock):
@@ -753,8 +778,6 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
             c1 = ch[f]  # 输入通道数
             c2 = min(int(args[0]* width),int(max_channels* width))
             args = [c1, c2, *args[1:]]
-
-
 
         else:
             c2 = ch[f]
