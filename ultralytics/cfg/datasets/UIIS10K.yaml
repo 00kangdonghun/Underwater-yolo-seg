@@ -1,0 +1,19 @@
+# Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
+path: /home1/danny472/Underwater/dataset/UIIS10K # dataset root dir
+train: images/multiclass_train # train images (relative to 'path') 4 images
+val: images/multiclass_test # val images (relative to 'path') 4 images
+test: # test images (optional)
+
+nc: 10
+# Classes
+names:
+  0: Fish
+  1: Reptiles
+  2: Artiodactyla
+  3: Mollusk
+  4: Corals
+  5: Plants
+  6: Garbage
+  7: Ruins
+  8: Robots
+  9: Human
