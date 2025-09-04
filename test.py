@@ -9,7 +9,7 @@ iter = 125 #the iters of an epoch
 
 i = 0
 
-model = YOLO('/path/to/weight/.pt')
+model = YOLO('/home1/danny472/Underwater/SpikeYOLO/runs/UIIS10K/uw-final/train/weights/best.pt')
 
 def forward_hook_fn(module, input, output):  # 计算每一层的发放率
     global i
@@ -31,11 +31,8 @@ for n, m in model.named_modules():
         m.name = n
         m.register_forward_hook(forward_hook_fn)
 
-model.val(data="coco.yaml",device=[2])
+model.val(data="/home1/danny472/Underwater/SpikeYOLO/ultralytics/cfg/datasets/UIIS10K.yaml",device=[2], project="/home1/danny472/Underwater/SpikeYOLO/runs")
 print("fire:",fr_dict) #the firing rate of each layer
 
 
-
-
-#测试模型
-
+# python test.py > ./STDOUT/${LOG_PREFIX}.out 2> ./STDERR/${LOG_PREFIX}.err
