@@ -52,33 +52,33 @@ https://github.com/LiamLian0727/UIIS10K/blob/main/README.md
 │
 ├── dataset
 │   ├── deposition_302
-│       ├── images
-│       │     ├── train
-│       │     └── val
-│       └── labels
-│             ├── train
-│             └── val
+│   │   ├── images
+│   │   │     ├── train
+│   │   │     └── val
+│   │   └── labels
+│   │         ├── train
+│   │         └── val
 │   ├── marine_262
-│       ├── images
-│       │     ├── train
-│       │     └── val
-│       └── labels
-│             ├── train
-│             └── val
+│   │   ├── images
+│   │   │     ├── train
+│   │   │     └── val
+│   │   └── labels
+│   │         ├── train
+│   │         └── val
 │   ├── trash_295
-│       ├── images
-│       │     ├── train
-│       │     └── val
-│       └── labels
-│             ├── train
-│             └── val
-│   ├── UIIS10K
-│       ├── images
-│       │     ├── train
-│       │     └── val
-│       └── labels
-│             ├── train
-│             └── val
+│   │   ├── images
+│   │   │     ├── train
+│   │   │     └── val
+│   │   └── labels
+│   │         ├── train
+│   │         └── val
+│   └── UIIS10K
+│      ├── images
+│      │     ├── train
+│      │     └── val
+│      └── labels
+│            ├── train
+│            └── val
 │
 ├── ultralytics/
 │   ├── cfg/
