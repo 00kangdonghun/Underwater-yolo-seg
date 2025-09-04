@@ -1,0 +1,18 @@
+# Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
+path: /home1/danny472/Underwater/dataset/trash_295 # dataset root dir
+train: images/train # train images (relative to 'path') 4 images
+val: images/val # val images (relative to 'path') 4 images
+test: # test images (optional)
+
+# Classes
+names:
+  0: can
+  1: clothes
+  2: fishing_plumb
+  3: glass_bottle
+  4: gloves
+  5: lure
+  6: mask
+  7: plastic_bottle
+  8: scrap_iron
+  9: soda_can 
