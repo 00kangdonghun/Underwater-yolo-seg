@@ -144,8 +144,8 @@ python test.py
 
 
 ## 📊 Results (example)
+<img width="1299" height="918" alt="image" src="https://github.com/user-attachments/assets/0603d9c0-7780-4fb5-a267-3fc81cdc5281" />
 
-<img width="1029" height="728" alt="image" src="https://github.com/user-attachments/assets/ceb60cf9-0192-48a3-9b88-71c58e82542d" />
 
 
 ## 📖 References
